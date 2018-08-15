@@ -1,75 +1,77 @@
 # Init scripts sets global variables and loads other scripts
 
-elog("
+println("
 ###################################################################
  CobaltStrike Aggressor Script © Joe Vest, Andrew Chiles 2018                                  
  Author:      Joe Vest, Andrew Chiles
  Description: Init aggressor script. Sets global variables and loads other scripts
- Version: CobaltStrike 3.10
+ Version: CobaltStrike 3.11
 ###################################################################");
 
 # Aggressor Script Global Variables
-elog('Loading init.cna...')
+println('Loading init.cna...');
 
 ##################################################################################
-### _GLOBAL SCRIPT VARIABLES_
+### SCRIPT VARIABLES
+@modules = @("handler.cna", "automigrate.cna"); # other scripts to load
 
-#global('$g_ListenerName');      
+##################################################################################
+### GLOBAL SCRIPT VARIABLES
 global('$g_initialSleep');                      
 global('$g_initialJitter');             
 global('$g_deadThreshold');     
 global('$g_basePath');                  
+
 global('$g_adminMigrationBin');
 global('$g_userMigrationBin');
 global('$g_enableMigration');
+global('$g_migratedBeacons');
 
-$g_initialSleep      = 60;              # Sleep set at inital beacon
+$g_initialSleep      = 60;                  # Sleep set at inital beacon
 $g_initialJitter     = 20;                  # Jitter set at inital beacon
 $g_deadThreshold     = int(900 * 1000);     # Time use to mark when a beacon is considered dead
-$g_basePath          = "./";                # Base path for scripts
-$g_adminMigrationBin = 'winlogon.exe';  # Binary used for Admin level migration
-$g_userMigrationBin  = 'explorer.exe';  # Binary used for User level migration
-$g_enableMigration   = false;           # Enable or Disable Migration 
+$g_basePath          = "modules/";          # Base path for scripts
 
-## Update Globals via script command
+$g_adminMigrationBin = 'winlogon.exe';      # Binary used for Admin level migration
+$g_userMigrationBin  = 'explorer.exe';      # Binary used for User level migration
+$g_enableMigration   = false;               # Enable or Disable Migration 
+%g_migratedBeacons       = %();                 # Track migrated Beacons in memory array.  Note: Not persistent
+
+##################################################################################
+## Functions to update globals variables via script command
 
 command setg_InitialSleep {
+    # set initial sleep
     $g_initialSleep = int($1);
 }
 
 command setg_InitialJitter {
+    # set initial jitter
     $g_initialJitter = int($1);
 }
 
-#command setg_ListenerName {
-#    $g_ListenerName = $1;
-#}
-
 command setg_deadThreshold {
+    # set dead threshold
     $g_deadThreshold = int($1 * 1000);
 }
 
 command setg_basePath {
+    # set base path for scripts
     $g_basePath = $1;
 }
 
 command setg_userMigrationBin {
+    # set user level migraion binary
     $g_userMigrationBin = $1;
 }
 
 command setg_adminMigrationBin {
+    # set admin level migraion binary
     $g_adminMigrationBin = $1;
 }
 
-command setg_enableSlackNotification {
-    if ($1 eq 'true') {
-        $g_enableSlackNotification  = true;           
-    } else {
-        $g_enableSlackNotification  = false;           
-    }
-}
-
 command setg_enableMigration {
+    # enable/disable auto migration
     if ($1 eq 'true') {
         $g_enableMigration  = true;           
     } else {
@@ -78,39 +80,42 @@ command setg_enableMigration {
 }
 
 command showGlobals {
+    # Display the global variables
+
     println('____________________________________________________________');
     println('BEACON HANDLER GLOBAL VARIABLES')
     println('------------------------------------------------------------');
 
-    println('InitialSleep:           ' . $g_initialSleep . " (" . int($g_initialSleep / 60) . " minutes)");                        
-    println('InitialJitter:          ' . $g_initialJitter . " %");             
-    println('Dead Threshold(ms):     ' . $g_deadThreshold . " (" . int($g_deadThreshold / 1000) / 60 . " minutes)");     
-    println('Script Base Path:       ' . $g_basePath);                  
-    println('Admin Migration Binary: ' . $g_adminMigrationBin);
-    println('User Migration Binary:  ' . $g_userMigrationBin);
-
+    println('InitialSleep:             ' . $g_initialSleep . " (" . int($g_initialSleep / 60) . " minutes)");                        
+    println('InitialJitter:            ' . $g_initialJitter . " %");             
+    println('Dead Threshold(ms):       ' . $g_deadThreshold . " (" . int($g_deadThreshold / 1000) / 60 . " minutes)");     
+    println('Script Base Path:         ' . $g_basePath);   
+    
     if ($g_enableMigration) {
-        println('Enable Migration:       true');
+        println('Enable Migration:         true');
     } else {
-        println('Enable Migration:       false');
+        println('Enable Migration:         false');
     }
 
+    println(' Admin Migration Binary:  ' . $g_adminMigrationBin);
+    println(' User Migration Binary:   ' . $g_userMigrationBin);
+    
     println('____________________________________________________________');
 }
 
 ##################################################################################
-### LOAD EXTERNAL SCRIPTS
-
-println('Loading helper scripts ...');
-
-println("\t" . $g_basePath . "handler.cna");
-include(script_resource("./handler.cna"));
-println("");
-println('Verify all scripts loaded in the Event Log.');
-
-
-##################################################################################
 ### _GLOBAL FUNCTIONS_
+
+sub loadModules {
+    # Load all modules
+    
+    println('Loading modules ...');
+    foreach $module (@modules) {
+        println("  Attempting to load " . $g_basePath . $module);
+        include(script_resource($g_basePath . $module));
+    }
+
+}
 
 # Check if beacon is running as Admin
 sub isAdmin {
@@ -122,7 +127,6 @@ sub isAdmin {
     }
 }
 
-
 # Show Info on all beacons
 command beacons {
     local('$entry $key $value');
@@ -133,3 +137,12 @@ command beacons {
         }
     }
 }
+
+##################################################################################
+### LOAD EXTERNAL SCRIPTS
+
+
+loadModules();
+println("\n\n");
+
+

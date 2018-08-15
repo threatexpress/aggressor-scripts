@@ -1,0 +1,78 @@
+# Basic beacon handler
+# Provide basic beacon handling options
+
+println("\tLoading handler.cna");
+
+# Need to modify beacon_initial commands to prevent issuing commands against new SMB beacons which will sleep the parent on initial callback
+
+## VARIABLES
+
+%migratedBeacons = %(); # Track Migrated Beacons in memory array.  Note: Not persistent
+
+## Issue initial commands upon new beacon checkin
+on beacon_initial {
+    println("initial beacon info: " . $1 . " PID: " . beacon_info($1,"pid"));
+    elog("initial beacon info" .
+         "\n                    \c8ID: " . $1 . 
+         "\n                   \c8PID: " . beacon_info($1,"pid") . 
+         "\n              \c8Computer: " . beacon_info($1,"computer") . 
+         "\n                  \c8User: " . beacon_info($1,"user") . 
+         "\n                  \c8Arch: " . beacon_info($1,"barch")
+         );
+
+    bsleep($1, 0);
+    bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "sleep " . $g_initialSleep . " " . $g_initialJitter);
+    blog($1, "Updating sleep to initial sleep time.");
+    bsleep($1, $g_initialSleep , $g_initialJitter);
+
+    # Auto Migrate Beacons if enabled
+    if ($g_enableMigration) {
+        println("Auto Migrating " . $1)
+        fireAlias($1, "AutoMigrate");
+    }
+
+}
+
+## Initialize DNS Beacons
+on beacon_initial_empty {
+    binput($1, "mode dns-txt");
+    bmode($1, "dns-txt");
+    binput($1, "checkin");
+    bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "sleep " . $g_initialSleep . " " . $g_initialJitter);
+    bcheckin($1);
+    bsleep($1, $g_initialSleep , $g_initialJitter);
+}
+
+# Do stuff every 1 minute
+on heartbeat_1m {
+    
+    ## Check last beacon activity and annotate if it passes the dead threshold
+    foreach $beacon (beacons()) {
+
+        # Check if beacon is marked as dead
+        if ("DEAD" !isin $beacon['note']) {
+            # Check if beacon last callback is >= 15 minutes
+            if ($beacon['last'] >= int($g_deadThreshold)) {
+                elog("Beacon Died: " . $beacon['user'] . "@" . $beacon['external'] . " (" . $beacon['computer'] . ") " . $beacon['lastf']);
+                bnote($beacon['id'],"**DEAD** " . formatDate("yyyy.MM.dd_HH:mm:ss z") . "; " . $beacon['note']);
+            }
+        }
+    }
+
+}
+
+## Issue commands against all beacons every 15 minutes to simulate operator activity
+
+on heartbeat_15m {
+    foreach $beacon (beacons()) {
+        # Check if beacon is marked as DEAD
+        if ("DEAD" !isin $beacon['note']) {
+            #println("Issuing heartbeat commands");
+            #println("Issuing comand ipconfig against " . $beacon['id']);
+            #binput($1,"shell ipconfig");
+            #bshell($beacon['id'],"ipconfig");
+            #bcheckin($1);
+        }
+    }
+}
+
