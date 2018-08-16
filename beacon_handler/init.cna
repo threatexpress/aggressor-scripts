@@ -2,10 +2,10 @@
 
 println("
 ###################################################################
- CobaltStrike Aggressor Script © Joe Vest, Andrew Chiles 2018                                  
+ CobaltStrike Aggressor Script Framework © Joe Vest, Andrew Chiles 2018                                  
  Author:      Joe Vest, Andrew Chiles
- Description: Init aggressor script. Sets global variables and loads other scripts
- Version: CobaltStrike 3.11
+ Description: Aggressor script. Sets global variables and loads other scripts
+ Version:     CobaltStrike 3.11
 ###################################################################");
 
 # Aggressor Script Global Variables
@@ -27,8 +27,8 @@ global('$g_userMigrationBin');
 global('$g_enableMigration');
 global('$g_migratedBeacons');
 
-$g_initialSleep      = 60;                  # Sleep set at inital beacon
-$g_initialJitter     = 20;                  # Jitter set at inital beacon
+$g_initialSleep      = 60;                  # Sleep set at inital beacon in seconds
+$g_initialJitter     = 20;                  # Jitter set at inital beacon as percentage
 $g_deadThreshold     = int(900 * 1000);     # Time use to mark when a beacon is considered dead
 $g_basePath          = "modules/";          # Base path for scripts
 

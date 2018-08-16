@@ -1,5 +1,5 @@
 # Basic beacon handler
-# Provide basic beacon handling options
+# Provide beacon handling options
 
 println("\tLoading handler.cna");
 
@@ -15,22 +15,25 @@ on beacon_initial {
     elog("initial beacon info" .
          "\n                    \c8ID: " . $1 . 
          "\n                   \c8PID: " . beacon_info($1,"pid") . 
-         "\n              \c8Computer: " . beacon_info($1,"computer") . 
-         "\n                  \c8User: " . beacon_info($1,"user") . 
+         #"\n              \c8Computer: " . beacon_info($1,"computer") . 
+         #"\n                  \c8User: " . beacon_info($1,"user") . 
          "\n                  \c8Arch: " . beacon_info($1,"barch")
          );
 
-    bsleep($1, 0);
-    bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "sleep " . $g_initialSleep . " " . $g_initialJitter);
-    blog($1, "Updating sleep to initial sleep time.");
-    bsleep($1, $g_initialSleep , $g_initialJitter);
-
+    if (beacon_info($1,"pbid"))  { # This is an SMB beacon. Do not run initial sleep
+        #bsleep($1, 0);
+        bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "SMB parent " . beacon_info($1,"pid"));
+        blog($1, "\c8Handler - SMB Beacon, skipping initial sleep");
+    } else {
+        bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "sleep " . $g_initialSleep . " " . $g_initialJitter);
+        blog($1, "\c8Handler - Updating sleep to initial sleep time.");
+        bsleep($1, $g_initialSleep , $g_initialJitter);
+    }
     # Auto Migrate Beacons if enabled
     if ($g_enableMigration) {
         println("Auto Migrating " . $1)
         fireAlias($1, "AutoMigrate");
     }
-
 }
 
 ## Initialize DNS Beacons
@@ -50,11 +53,19 @@ on heartbeat_1m {
     foreach $beacon (beacons()) {
 
         # Check if beacon is marked as dead
-        if ("DEAD" !isin $beacon['note']) {
-            # Check if beacon last callback is >= 15 minutes
-            if ($beacon['last'] >= int($g_deadThreshold)) {
-                elog("Beacon Died: " . $beacon['user'] . "@" . $beacon['external'] . " (" . $beacon['computer'] . ") " . $beacon['lastf']);
-                bnote($beacon['id'],"**DEAD** " . formatDate("yyyy.MM.dd_HH:mm:ss z") . "; " . $beacon['note']);
+        # This is an SMB beacon. Do not mark dead. They can go inactive for a long time
+        if (($beacon["pbid"]) > 0) { 
+            # This is an SMB beacon
+            # Don't do anything for now
+        } else {
+            if ("DEAD" !isin $beacon['note']) {
+                # Check if beacon last callback is >= <threshhold minutes>
+
+                if ($beacon['last'] >= int($g_deadThreshold)) {
+                    blog($beacon['id'], "\c4Handler - Beacon Died: (PID:" . $beacon['pid'] . ") " . $beacon['user'] . "@" . $beacon['external'] . " (" . $beacon['computer'] . ") " . $beacon['lastf']);
+                    elog("\c4Beacon Died: (PID:" . $beacon['pid'] . ") . $beacon['user'] . "@" . $beacon['external'] . " (" . $beacon['computer'] . ") " . $beacon['lastf']);
+                    bnote($beacon['id'],"**DEAD** " . formatDate("yyyy.MM.dd_HH:mm:ss z") . "; " . $beacon['note']);
+                }
             }
         }
     }
