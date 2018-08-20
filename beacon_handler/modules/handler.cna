@@ -63,7 +63,7 @@ on heartbeat_1m {
 
                 if ($beacon['last'] >= int($g_deadThreshold)) {
                     blog($beacon['id'], "\c4Handler - Beacon Died: (PID:" . $beacon['pid'] . ") " . $beacon['user'] . "@" . $beacon['external'] . " (" . $beacon['computer'] . ") " . $beacon['lastf']);
-                    elog("\c4Beacon Died: (PID:" . $beacon['pid'] . ") . $beacon['user'] . "@" . $beacon['external'] . " (" . $beacon['computer'] . ") " . $beacon['lastf']);
+                    elog("\c4Beacon Died: PID(" . $beacon['pid'] . ")" . $beacon['user'] . "@" . $beacon['external'] . " (" . $beacon['computer'] . ") " . $beacon['lastf']);
                     bnote($beacon['id'],"**DEAD** " . formatDate("yyyy.MM.dd_HH:mm:ss z") . "; " . $beacon['note']);
                 }
             }

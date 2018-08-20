@@ -1,13 +1,6 @@
 # AutoMigrate
 # Auto migrate beacon to new process
 
-# Warning: This is fire and forget. There is no guarantee of success
-# Steps: 
-#  1) A candidate process is located
-#  2) A new beacon is injected into the process
-#  3) The current beacon is killed
-
-
 println("\tLoading automigrate.cna");
 
 # Command Register
