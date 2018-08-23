@@ -3,8 +3,6 @@
 
 println("\tLoading handler.cna");
 
-# Need to modify beacon_initial commands to prevent issuing commands against new SMB beacons which will sleep the parent on initial callback
-
 ## VARIABLES
 
 %migratedBeacons = %(); # Track Migrated Beacons in memory array.  Note: Not persistent
@@ -22,7 +20,7 @@ on beacon_initial {
 
     if (beacon_info($1,"pbid"))  { # This is an SMB beacon. Do not run initial sleep
         #bsleep($1, 0);
-        bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "SMB parent " . beacon_info($1,"pid"));
+        bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "SMB parent " . beacon_info($1,"ppid"));
         blog($1, "\c8Handler - SMB Beacon, skipping initial sleep");
     } else {
         bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "sleep " . $g_initialSleep . " " . $g_initialJitter);
