@@ -1,0 +1,110 @@
+{
+  "nodes": [
+    {
+      "pid": "teamserver", 
+      "host": "10.10.10.10",
+      "id": 0,
+      "user": "teamserver",
+      "pbid": "",
+      "note": "",
+      "charset": "",
+      "internal": "",
+      "ver": "3.11",
+      "last": "",
+      "alive": "",
+      "os": "Cobalt Strike",
+      "session": "",
+      "barch": "",
+      "lastf": "",
+      "external": "",
+      "computer": "",
+      "port": "",
+      "is64": "",
+      "nodeIcon":"\uf233"
+    },
+    {
+      "pid": "4304",
+      "host": "172.16.214.128",
+      "id": 78859,
+      "user": "adminx86",
+      "pbid": "",
+      "note": "NEW; x64; sleep 60 20",
+      "charset": "windows-1252",
+      "internal": "172.16.214.128",
+      "ver": "10.0",
+      "last": "392087012",
+      "alive": true,
+      "os": "Windows",
+      "session": "beacon",
+      "barch": "x64",
+      "lastf": "108h",
+      "external": "172.16.214.128",
+      "computer": "WIN10",
+      "port": "",
+      "is64": 1,
+      "nodeIcon":"\uf0e7"
+    },
+    {
+      "pid": "3333",
+      "host": "host2",
+      "id": 3333,
+      "user": "localadmin",
+      "pbid": "",
+      "note": "NEW; x64; sleep 60 20",
+      "charset": "windows-1252",
+      "internal": "172.16.214.128",
+      "ver": "10.0",
+      "last": "392087012",
+      "alive": true,
+      "os": "Windows",
+      "session": "beacon",
+      "barch": "x64",
+      "lastf": "108h",
+      "external": "172.16.214.128",
+      "computer": "host2",
+      "port": "",
+      "is64": 1,
+      "nodeIcon":"\uf0e7"
+    },
+    {
+      "name": "PID_4444",
+      "host": "host2",
+      "id": 4444,
+      "user": "localadmin*",
+      "pbid": "",
+      "note": "NEW; x64; sleep 60 20",
+      "charset": "windows-1252",
+      "internal": "172.16.214.128",
+      "ver": "10.0",
+      "last": "392087012",
+      "alive": true,
+      "os": "Windows",
+      "session": "beacon",
+      "barch": "x64",
+      "lastf": "108h",
+      "external": "172.16.214.128",
+      "computer": "host2",
+      "port": "",
+      "is64": 1,
+      "nodeIcon":"\uf0e7"
+    }
+  ],
+  "links": [
+    {
+      "source": 78859,
+      "target": 0,
+      "type": "HTTP",
+      "since": 2010
+    },
+    {
+      "source": 3333,
+      "target": 0,
+      "type": "HTTP"
+    },
+    {
+      "source": 3333,
+      "target": 4444,
+      "type": "SMB"
+    }
+  ]
+}
