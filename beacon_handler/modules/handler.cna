@@ -20,7 +20,8 @@ on beacon_initial {
 
     if (beacon_info($1,"pbid"))  { # This is an SMB beacon. Do not run initial sleep
         #bsleep($1, 0);
-        bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "SMB parent " . beacon_info($1,"ppid"));
+	# Get SMB parent (linked) beacon PID
+        bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "SMB parent " . beacon_info(beacon_info($1,"pbid"),"pid"));
         blog($1, "\c8Handler - SMB Beacon, skipping initial sleep");
     } else {
         bnote($1, "NEW; " . beacon_info($1,"barch") . "; " . "sleep " . $g_initialSleep . " " . $g_initialJitter);
@@ -84,4 +85,3 @@ on heartbeat_15m {
         }
     }
 }
-
