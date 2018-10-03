@@ -1,7 +1,7 @@
-# beacon_export.cna
+# make_webview.cna
 # Export beacon metadata to other formats for use in other stuff
 
-command makeWebview {
+command make_webview {
     getCSV();
 }
 

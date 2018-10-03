@@ -1,10 +1,10 @@
-# Beacon Webview
+# Beacon web view
 
 NOTE: This is early test code. It works, but may need tuning for production
 
-Display beacons in a graphical webview
+Display beacons in a graphical web view
 
-Uses a python3 script to convert the exported CSV to the JSON needed for for the webview display
+Uses a python3 script to convert the exported CSV to the JSON needed for for the web view display
 
 Requires the csv and json modules
 
@@ -23,13 +23,17 @@ Requires the csv and json modules
 
 ## Quickstart
 
+0) Save the source in the same directory as CobaltStrike.
+
+Yes this is bad, but like I said, this is early test code.
+
 1) Import the script
 
-    import export_beacons.cna
+    import make_webview.cna
 
 2) Use the script console to export the data
 
-    makeWebview
+    make_webview
 
 3) Start web server in webview directory
 
